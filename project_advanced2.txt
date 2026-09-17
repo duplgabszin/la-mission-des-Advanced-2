@@ -1,0 +1,96 @@
+import argparse
+from google import genai
+import requests
+import json
+import os
+
+print('어서 오슈. 못 챙겨서 그러는데 떠날 날짜 한 번만 더 기입혀 봐유~')
+register=input('아까 쓴 거 또 적는겨~ :')
+
+b=0
+repondre=0
+for a in list(register):
+	if a== "d":
+		b+=1
+		
+	elif a=="a":
+		b=b+1
+		
+	elif a=="t":
+		b+=1
+
+	elif a=="e":
+		b+=1
+		
+	elif a=="-":
+		b+=1
+	
+	elif b==5:
+		parser= argparse.ArgumentParser(description='이 프로그램은 argparse 사용법 보여줍니다.')  # ArgumentParser 객체 생성
+		parser.add_argument('arg1', help='필수 인수야.')
+		parser.add_argument('--optional', help='옵션 인수야.', default='기본값')  #명령줄(아마 cli? )  인수 추가
+		parser.add_argument('-v', '--verbose', action='store_false', help='상세히 출력할 것인지 여부')
+
+		args=parser.parse_args()   # 인수 파싱(분석 후 컴퓨터가 쓸 수 있게 구조화)
+		print(args)   # namespace 객체가 출력된다.
+		print(f"필수 인수:  {args.arg1}")  #namespace 객체에서는 값에 . 점으로 접근한다.
+		print(f"옵션 인수: {args.optional}")
+
+		#if args.verbose:
+		print('상세 출력한다는데?')
+		
+		b=1000  #  b==5의 elif 조건문이 반복되지 않도록 다른 값을 대입해 준다.
+
+		client=genai.Client(api_key=" ")
+		ordre=f"{register}, 이 날짜에 여행갈 대한민국 안의 광역시 하나를 랜덤으로 추천해 주고 그 이유를 2문장으로 요약하게. 그리고 해당일의 날씨를 알릴 것이며 거기서 열리는 행사나 축제 역시 3개 정도 나열해봐. 결과는 반드시 JSON 으로 파싱 가능한 텍스트여야만 한다. 왜냐면 구조화된 출력으로써 또다른 API에게 입력이 연결되는 작업을 내가 준비할 것이니까. 키 : 출력결과   식으로 나타내는데 그 중에 추천도시: ~광역시 로서 광역시들의 키는 꼭 추천도시 라고 표기하라. "
+		# response=client.models.generate_content(model="gemini-3.6-flash",contents="register",)
+		response=client.models.generate_content(model="gemini-3.6-flash",contents=ordre,)
+		print(response.text)
+		repond=response.text.strip("```")   # strip 내장 메소드는 따옴표 안의 문자를 삭제한다.
+		reponds=repond.strip("json")
+		print(reponds)
+		repondre=json.loads(reponds)
+		print(repondre["출력결과"]["추천도시"])
+	
+		break
+		
+	else: 
+		print("왜 시킨대로 안 하는겨-")
+		print("date-XXXX-**-xx 로 입력해야쥬!")
+		exit()
+		  
+#client=genai.Client(api_key=" ")
+#response=client.models.generate_content(model="gemini-3.6-flash",contents="date-2026-9-19 대전 둔산동 여행지 추천해 줘",)
+#print(response.text)
+	
+rest_api_key=" "
+url="https://dapi.kakao.com/v2/local/search/keyword.json"
+
+headers={"Authorization":F"KakaoAK {rest_api_key}"}
+try:
+	params={"query":f"{repondre["출력결과"]["추천도시"]}"}
+except:
+	params={"query":f"{repondre["추천도시"]}"}
+
+responses=requests.get(url,headers=headers, params=params)
+
+if responses.status_code==200:
+	resultat=responses.json()
+	print(resultat)
+
+else:
+	print(f"error_code:{responses.status_code}")
+	print(responses.json())
+
+order=F"{resultat}에서 맛집과 관련있는 키와 값을 3개만 골라낸 뒤 {repondre} 와 같이 markdown 텍스트를 생성하여서 여행리포트를 만들어 줘. 이 내용과 관련하여 1일 여행일정도 찾아내어 레포트에 추가해 다오. 그리하여 최종적으로는 C:\\Users\\DiCiA\\Desktop\\projet 폴더에 그 여행리포트 markdown을 생산해서 놓아두도록 해라. 이 폴더 안에 print(repondre)의 파일내용을 json 형식으로 만들어서 놓아줘.  "
+reply=client.models.generate_content(model="gemini-3.6-flash",contents=order,)
+print(reply.text)
+
+folder_path = r"C:\Users\DiCiA\Desktop\projet"
+file_name = "busan_travel_report.md"
+full_path = os.path.join(folder_path, file_name)
+
+print(reply.text)
+
+with open(full_path, "w", encoding="utf-8") as file:
+	file.write(reply.text)
